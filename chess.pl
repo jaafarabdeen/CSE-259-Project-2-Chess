@@ -329,7 +329,7 @@ legal_move(Board, Color, From, To) :-
 
 
 in_check(Board, Color) :-
-  mymember(piece(KingSquare, Color, king), Board),
+  myMember(piece(KingSquare, Color, king), Board),
   opposite(Color, OppositeColor),
   move(Board, _, KingSquare, OppositeColor, _).
 
@@ -371,25 +371,25 @@ parse_move(Move, From_File-From_Rank, To_File-To_Rank) :-
     on_board(To_File-To_Rank).
  
 on_board(File-Rank) :-
-  mymember(File, [a, b, c, d, e, f, g, h]),
-  mymember(Rank, [1, 2, 3, 4, 5, 6, 7, 8]).
+  myMember(File, [a, b, c, d, e, f, g, h]),
+  myMember(Rank, [1, 2, 3, 4, 5, 6, 7, 8]).
 
 not_moved(Board, Color, king) :-
-  mymember(state(Color, King, _, _), Board), !,
+  myMember(state(Color, King, _, _), Board), !,
   var(King).
 not_moved(Board, Color, king, rook) :-
-  mymember(state(Color, _, KingRook, _), Board), !,
+  myMember(state(Color, _, KingRook, _), Board), !,
   var(KingRook).
 not_moved(Board, Color, queen, rook) :-
-  mymember(state(Color, _, _, QueenRook), Board), !,
+  myMember(state(Color, _, _, QueenRook), Board), !,
   var(QueenRook).
 
 update_state(Board, From, Color, king) :-    % Was king moved?
-  mymember(state(Color, king_moved, _, _), Board).
+  myMember(state(Color, king_moved, _, _), Board).
 update_state(Board, h-Rank, Color, rook) :-    % Was king rook moved?
-  mymember(state(Color, _, king_rook_moved, _), Board).
+  myMember(state(Color, _, king_rook_moved, _), Board).
 update_state(Board, a-Rank, Color, rook) :-    % Was queen rook moved?
-  mymember(state(Color, _, _, queen_rook_moved), Board).
+  myMember(state(Color, _, _, queen_rook_moved), Board).
 update_state(_, _, _, _).                       % Else, ignore
 
 
@@ -414,8 +414,83 @@ report_move(Color, Board, From_File-From_Rank, To_File-To_Rank, Rating) :-
 /* TASK 1: REPLACE THE print_board PREDICATE BELOW WITH YOUR CODE */
 /*         KEEP THE NAME print_board, JUST CHANGE THE IMPLEMENTATION*/
 /* ----------------------------------------------------------------------- */
+drawSymbol(Symbol, 0).
+drawSymbol(Symbol, N) :- N > 0, write(Symbol), N1 is N - 1, drawSymbol(Symbol, N1).
+
+
+drawBorderLine(0) :- drawSymbol('+', 1), nl.
+drawBorderLine(Col) :-
+  Col > 0,
+  drawSymbol('+', 1), drawSymbol('-', 4),
+  NewCol is Col - 1,
+  drawBorderLine(NewCol).
+
+
+drawContentCell(BoardStates, Row, 0) :- drawSymbol('|', 1), nl.
+drawContentCell(BoardStates, Row, Col) :-
+  Col > 0,
+  drawSymbol('|', 1), drawCell(BoardStates, Row, Col),
+  NewCol is Col - 1,
+  drawContentCell(BoardStates, Row, NewCol).
+
+
+% finds whether the current cell has any white or black piece in it
+drawCell(BoardStates, Row, Col) :-
+  pair(Name, Col),
+  myMember(piece(Name-Row, Color, Piece), BoardStates),
+  drawSymbol(' ', 1),
+  (
+    (Color == black, drawSymbol('*', 1));
+    (Color == white, drawSymbol(' ', 1))
+  ),
+  pair(Piece, PieceAbbreviation),
+  drawSymbol(PieceAbbreviation, 1),
+  drawSymbol(' ', 1).
+
+% deals with white space
+drawCell(BoardStates, Row, Col) :-
+  pair(Name, Col),
+  \+ (myMember(piece(Name-Row, Color, Piece), BoardStates)),
+  drawSymbol(' ', 4).
+
+  
+drawPair :-
+  drawSymbol(' ', 4), drawSymbol('a', 1), drawSymbol(' ', 4), drawSymbol('b', 1),
+  drawSymbol(' ', 4), drawSymbol('c', 1), drawSymbol(' ', 4), drawSymbol('d', 1),
+  drawSymbol(' ', 4), drawSymbol('e', 1), drawSymbol(' ', 4), drawSymbol('f', 1),
+  drawSymbol(' ', 4), drawSymbol('g', 1), drawSymbol(' ', 4), drawSymbol('h', 1).
+
+
+pair(a, 8).
+pair(b, 7).
+pair(c, 6).
+pair(d, 5).
+pair(e, 4).
+pair(f, 3).
+pair(g, 2).
+pair(h, 1).
+
+pair(rook, r).
+pair(bishop, b).
+pair(king, k).
+pair(pawn, p).
+pair(queen, q).
+pair(knight, n).
+
+
+drawBoard(BoardStates, 0, Col) :- drawSymbol(' ', 1), drawBorderLine(Col), drawPair.
+drawBoard(BoardStates, Row, Col) :-
+  Row > 0,
+  drawSymbol(' ', 1),
+  drawBorderLine(Col),
+  drawSymbol(Row, 1),
+  drawContentCell(BoardStates, Row, Col),
+  NewRow is Row - 1,
+  drawBoard(BoardStates, NewRow, Col).
+
+
 print_board(Board) :-
-    write(Board), nl.
+    drawBoard(Board, 8, 8), nl.
 /* ----------------------------------------------------------------------- */
 
 
@@ -606,7 +681,7 @@ can_step(Board, -1, -1, F_File-F_Rank, T_File-T_Rank) :-
 
 
 occupied_by(Board, File-Rank, Color, Piece) :-
-  mymember(piece(File-Rank, Color, Piece), Board).
+  myMember(piece(File-Rank, Color, Piece), Board).
 
 
 plus_one(1, 2).  
@@ -646,9 +721,9 @@ minus_two(X,Y) :-
   plus_two(Y, X).
 
 
-mymember(X, [X|_]).
-mymember(X, [_|L]) :-
-  mymember(X, L).
+myMember(X, [X|_]).
+myMember(X, [_|L]) :-
+  myMember(X, L).
 
 opposite(white, black).
 opposite(black, white).
