@@ -88,29 +88,11 @@ init_board([
 /* ----------------------------------------------------------------------- */
 play(Board) :-
 		/* move playerA */
-		/* get_command asks the user for the move to be made. 
-		   modify this so that playerA moves on its own */
-    get_command(Command),
     execute_command(Command, Board, NewBoard),
 
     /* move playerB */
     execute_command(playerB, NewBoard, NextNewBoard),
     play(NextNewBoard).
-
-
-
-/* getting command from the user so that playerA aka white can move */
-get_command(Command) :-
-    nl, write('white move -> '),
-    read(Command), !.
-  
-
-
-/* execute the move selected */
-execute_command(Move, Board, NewBoard) :-
-         parse_move(Move, From, To),
-         move(Board, From, To, white, Piece),
-         make_move(Board, From, To, NewBoard), !.
 
 execute_command(Player, Board, NewBoard) :-
     respond_to(Player, Board, NewBoard), !.
@@ -133,15 +115,77 @@ strengthA([], _, _, Rand) :- noise_level(Level), random(0, Level, Number),
 Rand is Number.               % Add random value to avoid deadlock
 /* ----------------------------------------------------------------------- */
 
-
-
 /* ----------------------------------------------------------------------- */
 /* WRITE YOUR CODE FOR TASK-2 HERE */
 /* TASK 2: IMPLEMENT playerA CODE HERE */
 /* MIMIC THE CODE FOR playerB */
 /* ----------------------------------------------------------------------- */
 
+/* ----------------------------------------------------------------------- */
+/* playerB Code */
+% Strength assesses utility of the current game state for player based on its Color
+/* playerA strength evaluation */
+strengthA([state(_, _, _, _)|Board], Color, OppositeColor, Strength) :-
+    strengthA(Board, Color, OppositeColor, Strength), !.
+strengthA([piece(_, Color, Type)|Board], Color, OppositeColor, Strength) :-
+    valueA(Type, Value),
+    strengthA(Board, Color, OppositeColor, PartialStrength),
+    Strength is PartialStrength + Value, !.
+strengthA([piece(_, OppositeColor, Type)|Board], Color, OppositeColor, Strength) :-
+    valueA(Type, Value),
+    strengthA(Board, Color, OppositeColor, PartialStrength),
+    Strength is PartialStrength - Value.
 
+
+ply_depthA(3).          % Depth of alpha-beta search
+
+
+% Define the utility function for playerA
+% MAKE SURE that the SUM of all pieces is smaller than 32000
+valueA(king, 10000) :- !.
+valueA(queen, 900) :- !.
+valueA(rook, 500) :- !.
+valueA(knight, 300) :- !.
+valueA(bishop, 300) :- !.
+valueA(pawn, 100) :- !.
+
+% PlayerA book moves, white
+bookA( [ state(white, WhiteKing, WhiteKingRook, WhiteQueenRook),
+         state(black, BlackKing, BlackKingRook, BlackQueenRook),
+         piece(a-1, white, rook  ), piece(b-1, white, knight ),
+         piece(c-1, white, bishop), piece(d-1, white, queen ),
+         piece(e-1, white, king  ), piece(f-1, white, bishop),
+         piece(g-1, white, knight ), piece(h-1, white, rook  ),
+         piece(a-2, white, pawn  ), piece(b-2, white, pawn  ),
+         piece(c-2, white, pawn  ), piece(d-2, white, pawn  ),
+         piece(e-2, white, pawn  ), piece(f-2, white, pawn  ),
+         piece(g-2, white, pawn  ), piece(h-2, white, pawn  ),
+         piece(a-7, black, pawn  ), piece(e-7, black, pawn  ),
+         piece(a-8, black, rook  ), piece(e-8, black, king  ) ], e-2, e-4).
+
+
+% Code for alpha beta prunning
+% Player is playerA, Turn is the player whose turn is to play
+sufficientA(Player, Board, Turn, [], Depth, Alpha, Beta, Move, Val, Move, Val) :- !.
+sufficientA(Player, Board, Turn, Moves, Depth, Alpha, Beta, Move, Val, Move, Val) :-
+    Player \== Turn,        % It is the opponent's turn to play, MIN node at Turn
+    Val < Alpha, !.         % Pruning the branch since it is not useful
+sufficientA(Player, Board, Turn, Moves, Depth, Alpha, Beta, Move, Val, Move, Val) :-
+    Player = Turn,          % It is the Player's turn to play, MAX node at Turn
+    Val > Beta, !.          % Pruning the branch since it is not useful
+sufficientA(Player, Board, Turn, Moves, Depth, Alpha, Beta, Move, Val,
+    BestMove, BestVal) :-
+    new_bounds(Player, Turn, Alpha, Beta, Val, NewAlpha, NewBeta),
+    find_best(Player, Board, Turn, Moves, Depth, NewAlpha, NewBeta, Move1, Val1),
+    better_of(Player, Turn, Move, Val, Move1, Val1, BestMove, BestVal).
+
+
+% Code to collect moves given the current state Board
+% If Moves is empty, it should return FAIL.
+collect_movesA(Board, Color, Moves) :-
+    bagof(move(From, To), Piece^move(Board, From, To, Color, Piece), Moves).
+
+/* ----------------------------------------------------------------------- */
 
 /* -------------------------- DO NOT OVERRIDE --------------------------- */
 strengthB([], _, _, Rand) :- noise_level(Level), random(0, Level, Number),
@@ -274,14 +318,12 @@ alpha_beta(Player, Board, Turn, 0, Alpha, Beta, BestMove, MoveVal) :-
 alpha_beta(Player, Board, Turn, Depth, Alpha, Beta, BestMove, MoveVal) :-
     player(Turn, Color),
     (player(Player, white) ->
-  (collect_movesA(Board, Color, MoveList) ->     % Turn is the player whose turn is to play
-        find_best(Player, Board, Turn, MoveList, Depth, Alpha, Beta,
-              BestMove, MoveVal);
-     MoveVal is -32000);             % If MoveList is empty, it means end of game or stalemate
-    (collect_movesB(Board, Color, MoveList) ->     % Turn is the player whose turn is to play
-        find_best(Player, Board, Turn, MoveList, Depth, Alpha, Beta,
-              BestMove, MoveVal);
-     MoveVal is -32000)).
+        (collect_movesA(Board, Color, MoveList) ->     % Use collect_movesA for playerA
+            find_best(Player, Board, Turn, MoveList, Depth, Alpha, Beta, BestMove, MoveVal);
+         MoveVal is -32000);             % If MoveList is empty, it means end of game or stalemate
+        (collect_movesB(Board, Color, MoveList) ->     % Use collect_movesB for playerB
+            find_best(Player, Board, Turn, MoveList, Depth, Alpha, Beta, BestMove, MoveVal);
+         MoveVal is -32000)).
 
 
 find_best(Player, Board, Turn, [move(From, To)|Moves], Depth, Alpha, Beta,
