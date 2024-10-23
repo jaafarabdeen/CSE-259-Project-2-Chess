@@ -134,12 +134,12 @@ ply_depthA(3).          % Depth of alpha-beta search
 
 % Define the utility function for playerA
 % MAKE SURE that the SUM of all pieces is smaller than 32000
-valueA(king, 10000) :- !.
-valueA(queen, 900) :- !.
-valueA(rook, 500) :- !.
-valueA(knight, 300) :- !.
-valueA(bishop, 300) :- !.
-valueA(pawn, 100) :- !.
+valueA(king, 10000) :- ! .
+valueA(queen,  900) :- ! .
+valueA(rook,   500) :- ! .
+valueA(knight, 300) :- ! .
+valueA(bishop, 300) :- ! .
+valueA(pawn,   100) :- ! .
 
 % PlayerA book moves, white
 bookA( [ state(white, WhiteKing, WhiteKingRook, WhiteQueenRook),
@@ -159,10 +159,10 @@ bookA( [ state(white, WhiteKing, WhiteKingRook, WhiteQueenRook),
 % Player is playerA, Turn is the player whose turn is to play
 sufficientA(Player, Board, Turn, [], Depth, Alpha, Beta, Move, Val, Move, Val) :- !.
 sufficientA(Player, Board, Turn, Moves, Depth, Alpha, Beta, Move, Val, Move, Val) :-
-    Player \== Turn,        % It is the opponent's turn to play, MIN node at Turn
+    Player \== Turn,        % It is the opponent turn to play, MIN node at Turn
     Val < Alpha, !.         % Pruning the branch since it is not useful
 sufficientA(Player, Board, Turn, Moves, Depth, Alpha, Beta, Move, Val, Move, Val) :-
-    Player = Turn,          % It is the Player's turn to play, MAX node at Turn
+    Player = Turn,          % It is the Player turn to play, MAX node at Turn
     Val > Beta, !.          % Pruning the branch since it is not useful
 sufficientA(Player, Board, Turn, Moves, Depth, Alpha, Beta, Move, Val,
     BestMove, BestVal) :-
@@ -173,7 +173,7 @@ sufficientA(Player, Board, Turn, Moves, Depth, Alpha, Beta, Move, Val,
 % Code to collect moves given the current state Board
 % If Moves is empty, it should return FAIL.
 collect_movesA(Board, Color, Moves) :-
-    bagof(move(From, To), Piece^move(Board, From, To, Color, Piece), Moves).
+    bagof(move(From, To), Piece^move(Board,From,To,Color,Piece), Moves).
 
 /* ----------------------------------------------------------------------- */
 
