@@ -88,29 +88,11 @@ init_board([
 /* ----------------------------------------------------------------------- */
 play(Board) :-
 		/* move playerA */
-		/* get_command asks the user for the move to be made. 
-		   modify this so that playerA moves on its own */
-    get_command(Command),
     execute_command(Command, Board, NewBoard),
 
     /* move playerB */
     execute_command(playerB, NewBoard, NextNewBoard),
     play(NextNewBoard).
-
-
-
-/* getting command from the user so that playerA aka white can move */
-get_command(Command) :-
-    nl, write('white move -> '),
-    read(Command), !.
-  
-
-
-/* execute the move selected */
-execute_command(Move, Board, NewBoard) :-
-         parse_move(Move, From, To),
-         move(Board, From, To, white, Piece),
-         make_move(Board, From, To, NewBoard), !.
 
 execute_command(Player, Board, NewBoard) :-
     respond_to(Player, Board, NewBoard), !.
@@ -133,22 +115,72 @@ strengthA([], _, _, Rand) :- noise_level(Level), random(0, Level, Number),
 Rand is Number.               % Add random value to avoid deadlock
 /* ----------------------------------------------------------------------- */
 
+/* ----------------------------------------------------------------------- */
+/* playerA Code */
+% Strength assesses utility of the current game state for player based on its Color
+/* playerA strength evaluation */
+strengthA([state(_, _, _, _)|Board], Color, OppositeColor, Strength) :-
+    strengthA(Board, Color, OppositeColor, Strength), !.
+strengthA([piece(_, Color, Type)|Board], Color, OppositeColor, Strength) :-
+    valueA(Type, Value),
+    strengthA(Board, Color, OppositeColor, PartialStrength),
+    Strength is PartialStrength + Value, !.
+strengthA([piece(_, OppositeColor, Type)|Board], Color, OppositeColor, Strength) :-
+    valueA(Type, Value),
+    strengthA(Board, Color, OppositeColor, PartialStrength),
+    Strength is PartialStrength - Value.
 
+ply_depthA(3).          % Depth of alpha-beta search
+
+% Define the utility function for playerA
+% MAKE SURE that the SUM of all pieces is smaller than 32000
+valueA(king, 10000) :- ! .
+valueA(queen,  900) :- ! .
+valueA(rook,   500) :- ! .
+valueA(knight, 300) :- ! .
+valueA(bishop, 300) :- ! .
+valueA(pawn,   100) :- ! .
+
+% PlayerA book moves, white
+bookA( [ state(white, WhiteKing, WhiteKingRook, WhiteQueenRook),
+         state(black, BlackKing, BlackKingRook, BlackQueenRook),
+         piece(a-1, white, rook  ), piece(b-1, white, knight ),
+         piece(c-1, white, bishop), piece(d-1, white, queen ),
+         piece(e-1, white, king  ), piece(f-1, white, bishop),
+         piece(g-1, white, knight ), piece(h-1, white, rook  ),
+         piece(a-2, white, pawn  ), piece(b-2, white, pawn  ),
+         piece(c-2, white, pawn  ), piece(d-2, white, pawn  ),
+         piece(e-2, white, pawn  ), piece(f-2, white, pawn  ),
+         piece(g-2, white, pawn  ), piece(h-2, white, pawn  ),
+         piece(a-7, black, pawn  ), piece(e-7, black, pawn  ),
+         piece(a-8, black, rook  ), piece(e-8, black, king  ) ], e-2, e-4).
+
+% Code for alpha beta prunning
+% Player is playerA, Turn is the player whose turn is to play
+sufficientA(Player, Board, Turn, [], Depth, Alpha, Beta, Move, Val, Move, Val) :- !.
+sufficientA(Player, Board, Turn, Moves, Depth, Alpha, Beta, Move, Val, Move, Val) :-
+    Player \== Turn,        % It is the opponent turn to play, MIN node at Turn
+    Val < Alpha, !.         % Pruning the branch since it is not useful
+sufficientA(Player, Board, Turn, Moves, Depth, Alpha, Beta, Move, Val, Move, Val) :-
+    Player = Turn,          % It is the Player turn to play, MAX node at Turn
+    Val > Beta, !.          % Pruning the branch since it is not useful
+sufficientA(Player, Board, Turn, Moves, Depth, Alpha, Beta, Move, Val,
+    BestMove, BestVal) :-
+    new_bounds(Player, Turn, Alpha, Beta, Val, NewAlpha, NewBeta),
+    find_best(Player, Board, Turn, Moves, Depth, NewAlpha, NewBeta, Move1, Val1),
+    better_of(Player, Turn, Move, Val, Move1, Val1, BestMove, BestVal).
+
+% Code to collect moves given the current state Board
+% If Moves is empty, it should return FAIL.
+collect_movesA(Board, Color, Moves) :-
+    bagof(move(From, To), Piece^move(Board,From,To,Color,Piece), Moves).
 
 /* ----------------------------------------------------------------------- */
-/* WRITE YOUR CODE FOR TASK-2 HERE */
-/* TASK 2: IMPLEMENT playerA CODE HERE */
-/* MIMIC THE CODE FOR playerB */
-/* ----------------------------------------------------------------------- */
-
-
 
 /* -------------------------- DO NOT OVERRIDE --------------------------- */
 strengthB([], _, _, Rand) :- noise_level(Level), random(0, Level, Number),
       Rand is Number.               % Add random value to avoid deadlock
 /* ----------------------------------------------------------------------- */
-
-
 
 /* ----------------------------------------------------------------------- */
 /* playerB Code */
@@ -166,9 +198,7 @@ strengthB([piece(_, OppositeColor, Type)|Board], Color, OppositeColor,
     strengthB(Board, Color, OppositeColor, PartialStrength),
     Strength is PartialStrength - Value.
 
-
 ply_depthB(3).          % Depth of alpha-beta search
-
 
 % Define the utility function for playerB
 % MAKE SURE that the SUM of all pieces is smaller than 32000
@@ -199,7 +229,6 @@ bookB( [ state(white, WhiteKing, WhiteKingRook, WhiteQueenRook), % e2e4
     piece(f-2, white, pawn  ), piece(g-2, white, pawn  ),
     piece(h-2, white, pawn  ), piece(e-4, white, pawn  ) ], e-7, e-5).
 
-
 % Code for alpha beta prunning
 % Player is playerB, Turn is the player whose turn is to play
 sufficientB(Player, Board, Turn, [], Depth, Alpha, Beta, Move, Val, Move, Val) :- !.
@@ -215,13 +244,10 @@ sufficientB(Player, Board, Turn, Moves, Depth, Alpha, Beta, Move, Val,
     find_best(Player, Board, Turn, Moves, Depth, NewAlpha, NewBeta, Move1, Val1),
     better_of(Player, Turn, Move, Val, Move1, Val1, BestMove, BestVal).
 
-
 % Code to collect moves given the current state Board
 % If Moves is empty, it should return FAIL.
 collect_movesB(Board, Color, Moves) :-
     bagof(move(From, To), Piece^move(Board,From,To,Color,Piece), Moves).
-
-
 
 /* ----------------------------------------------------------------------- */
 /* Chess procedures */
@@ -232,7 +258,6 @@ respond_to(Player, Board, OutBoard) :-
     % statistics,
   finish_move(Player, Board, From, To, Rating,        % Finish the next move
           OutBoard), !.
-
 
 finish_move(Player, Board, From, To, -32000, Board) :-
   player(Player, Color),
@@ -255,7 +280,6 @@ finish_move(Player, NewBoard, From, To, Rating, OutBoard) :-
   make_move(NewBoard, From, To, OutBoard),
   report_move(Color, OutBoard, From, To, Rating).
 
-
 select_move(Player, Board, From, To, bookA) :-    % Use book for playerA
     player(Player, white),
   bookA(Board, From, To), !.
@@ -267,22 +291,18 @@ select_move(Player, Board, From, To, Rating) :-    % time for ALPHA-BETA
   alpha_beta(Player, Board, Player, Depth, -32000, 32000,
           move(From, To), Rating).
 
-
 alpha_beta(Player, Board, Turn, 0, Alpha, Beta, BestMove, MoveVal) :-
   player(Player, Color),
   evaluate(Board, Color, MoveVal), !.
 alpha_beta(Player, Board, Turn, Depth, Alpha, Beta, BestMove, MoveVal) :-
     player(Turn, Color),
     (player(Player, white) ->
-  (collect_movesA(Board, Color, MoveList) ->     % Turn is the player whose turn is to play
-        find_best(Player, Board, Turn, MoveList, Depth, Alpha, Beta,
-              BestMove, MoveVal);
-     MoveVal is -32000);             % If MoveList is empty, it means end of game or stalemate
-    (collect_movesB(Board, Color, MoveList) ->     % Turn is the player whose turn is to play
-        find_best(Player, Board, Turn, MoveList, Depth, Alpha, Beta,
-              BestMove, MoveVal);
-     MoveVal is -32000)).
-
+        (collect_movesA(Board, Color, MoveList) ->     % Use collect_movesA for playerA
+            find_best(Player, Board, Turn, MoveList, Depth, Alpha, Beta, BestMove, MoveVal);
+         MoveVal is -32000);             % If MoveList is empty, it means end of game or stalemate
+        (collect_movesB(Board, Color, MoveList) ->     % Use collect_movesB for playerB
+            find_best(Player, Board, Turn, MoveList, Depth, Alpha, Beta, BestMove, MoveVal);
+         MoveVal is -32000)).
 
 find_best(Player, Board, Turn, [move(From, To)|Moves], Depth, Alpha, Beta,
     BestMove, BestVal) :-
@@ -296,7 +316,6 @@ find_best(Player, Board, Turn, [move(From, To)|Moves], Depth, Alpha, Beta,
         sufficientB(Player, Board, Turn, Moves, Depth, Alpha, Beta,
             move(From,To), Val, BestMove, BestVal)).
 
-
 new_bounds(Player, Turn, Alpha, Beta, Val, Val, Beta) :-
     Player = Turn,      % Maximizing, keep the larger value
   Val > Alpha, !.
@@ -304,7 +323,6 @@ new_bounds(Player, Turn, Alpha, Beta, Val, Alpha, Val) :-
     Player \== Turn,        % Minimizing, keep the samller value
   Val < Beta, !.
 new_bounds(_, _, Alpha, Beta, _, Alpha, Beta).
-
 
 better_of(Player, Turn, Move, Val, Move1, Val1, Move, Val) :-
     Player \== Turn,        % Minimizing, the smaller the better
@@ -314,25 +332,21 @@ better_of(Player, Turn, Move, Val, Move1, Val1, Move, Val) :-
   Val > Val1, !.
 better_of(_, _, _, _, Move1, Val1, Move1, Val1).
 
-
 evaluate(Board, Color, Rating) :-
     \+ member(piece(_, Color, king), Board) -> Rating is -32000; % You do not want to lose the king
     opposite(Color, OppositeColor),
     (player(playerA, Color)->strengthA(Board, Color, OppositeColor, Rating);
     strengthB(Board, Color, OppositeColor, Rating)).
 
-
 legal_move(Board, Color, From, To) :-
   move(Board, From, To, Color, Piece),
   make_move(Board, From, To, NewBoard), !,
   \+ in_check(NewBoard, Color).
 
-
 in_check(Board, Color) :-
   myMember(piece(KingSquare, Color, king), Board),
   opposite(Color, OppositeColor),
   move(Board, _, KingSquare, OppositeColor, _).
-
 
 make_move(Board, From, To, OutBoard) :-
   make_move(Board, From, To, Color, Type, NewBoard),    
@@ -347,7 +361,6 @@ make_move([piece(To, _, _)|Board], From, To, Color, Type, OutBoard) :-
   make_move(Board, From, To, Color, Type, OutBoard).          % Skip To sq
 make_move([Piece|Board], From, To, Color, Type, [Piece|OutBoard]) :-
   make_move(Board, From, To, Color, Type, OutBoard).      % Copy
-
 
 check_castling(Board, e-Rank, g-Rank, Color, king, OutBoard) :- % King side
   make_move(Board, h-Rank, f-Rank, OutBoard).    % castling
@@ -392,8 +405,6 @@ update_state(Board, a-Rank, Color, rook) :-    % Was queen rook moved?
   myMember(state(Color, _, _, queen_rook_moved), Board).
 update_state(_, _, _, _).                       % Else, ignore
 
-
-
 /* ----------------------------------------------------------------------- */
 /* Printing utilities */
 report_move(Color, Board, From_File-From_Rank, To_File-To_Rank, Rating) :-
@@ -408,7 +419,6 @@ report_move(Color, Board, From_File-From_Rank, To_File-To_Rank, Rating) :-
   write(Rating), nl,
   print_board(Board).
 
-
 /* ----------------------------------------------------------------------- */
 /* WRITE YOUR CODE FOR TASK-1 HERE */
 /* TASK 1: REPLACE THE print_board PREDICATE BELOW WITH YOUR CODE */
@@ -417,7 +427,6 @@ report_move(Color, Board, From_File-From_Rank, To_File-To_Rank, Rating) :-
 drawSymbol(Symbol, 0).
 drawSymbol(Symbol, N) :- N > 0, write(Symbol), N1 is N - 1, drawSymbol(Symbol, N1).
 
-
 drawBorderLine(0) :- drawSymbol('+', 1), nl.
 drawBorderLine(Col) :-
   Col > 0,
@@ -425,14 +434,12 @@ drawBorderLine(Col) :-
   NewCol is Col - 1,
   drawBorderLine(NewCol).
 
-
 drawContentCell(BoardStates, Row, 0) :- drawSymbol('|', 1), nl.
 drawContentCell(BoardStates, Row, Col) :-
   Col > 0,
   drawSymbol('|', 1), drawCell(BoardStates, Row, Col),
   NewCol is Col - 1,
   drawContentCell(BoardStates, Row, NewCol).
-
 
 % finds whether the current cell has any white or black piece in it
 drawCell(BoardStates, Row, Col) :-
@@ -452,14 +459,12 @@ drawCell(BoardStates, Row, Col) :-
   pair(Name, Col),
   \+ (myMember(piece(Name-Row, Color, Piece), BoardStates)),
   drawSymbol(' ', 4).
-
   
 drawPair :-
   drawSymbol(' ', 4), drawSymbol('a', 1), drawSymbol(' ', 4), drawSymbol('b', 1),
   drawSymbol(' ', 4), drawSymbol('c', 1), drawSymbol(' ', 4), drawSymbol('d', 1),
   drawSymbol(' ', 4), drawSymbol('e', 1), drawSymbol(' ', 4), drawSymbol('f', 1),
   drawSymbol(' ', 4), drawSymbol('g', 1), drawSymbol(' ', 4), drawSymbol('h', 1).
-
 
 pair(a, 8).
 pair(b, 7).
@@ -477,7 +482,6 @@ pair(pawn, p).
 pair(queen, q).
 pair(knight, n).
 
-
 drawBoard(BoardStates, 0, Col) :- drawSymbol(' ', 1), drawBorderLine(Col), drawPair.
 drawBoard(BoardStates, Row, Col) :-
   Row > 0,
@@ -488,12 +492,9 @@ drawBoard(BoardStates, Row, Col) :-
   NewRow is Row - 1,
   drawBoard(BoardStates, NewRow, Col).
 
-
 print_board(Board) :-
     drawBoard(Board, 8, 8), nl.
 /* ----------------------------------------------------------------------- */
-
-
 
 /* ----------------------------------------------------------------------- */
 /* more utilities */
@@ -510,8 +511,6 @@ myname2(54, 6).
 myname2(55, 7).
 myname2(56, 8).
 myname2(57, 9).
-
-
 
 /* ----------------------------------------------------------------------- */
 /* Valid move checkers and generators */
@@ -679,10 +678,8 @@ can_step(Board, -1, -1, F_File-F_Rank, T_File-T_Rank) :-
   \+ occupied_by(Board, I_File-I_Rank, _, _),
   can_step(Board, -1, -1, I_File-I_Rank, T_File-T_Rank).
 
-
 occupied_by(Board, File-Rank, Color, Piece) :-
   myMember(piece(File-Rank, Color, Piece), Board).
-
 
 plus_one(1, 2).  
 plus_one(2, 3).  
@@ -719,7 +716,6 @@ plus_two(f, h).
 
 minus_two(X,Y) :-
   plus_two(Y, X).
-
 
 myMember(X, [X|_]).
 myMember(X, [_|L]) :-
