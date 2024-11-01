@@ -424,14 +424,16 @@ report_move(Color, Board, From_File-From_Rank, To_File-To_Rank, Rating) :-
 /* TASK 1: REPLACE THE print_board PREDICATE BELOW WITH YOUR CODE */
 /*         KEEP THE NAME print_board, JUST CHANGE THE IMPLEMENTATION*/
 /* ----------------------------------------------------------------------- */
-drawSymbol(Symbol, 0).
+% Draws a symbol a certain amount of times
+drawSymbol(Symbol, 0). % Base case: do nothing if count is 0
 drawSymbol(Symbol, N) :- N > 0, write(Symbol), N1 is N - 1, drawSymbol(Symbol, N1).
 
-drawBorderLine(0) :- drawSymbol('+', 1), nl.
+% Draws a border line for the board
+drawBorderLine(0) :- drawSymbol('+', 1), nl. % Draws a + at the end of the line
 drawBorderLine(Col) :-
-  Col > 0,
-  drawSymbol('+', 1), drawSymbol('-', 4),
-  NewCol is Col - 1,
+  Col > 0, % Make sure there are columns left to draw
+  drawSymbol('+', 1), drawSymbol('-', 4), % Draw + at the beginning and - for the border
+  NewCol is Col - 1, % Decrement the column count
   drawBorderLine(NewCol).
 
 drawContentCell(BoardStates, Row, 0) :- drawSymbol('|', 1), nl.
@@ -443,29 +445,31 @@ drawContentCell(BoardStates, Row, Col) :-
 
 % finds whether the current cell has any white or black piece in it
 drawCell(BoardStates, Row, Col) :-
-  pair(Name, Col),
-  myMember(piece(Name-Row, Color, Piece), BoardStates),
-  drawSymbol(' ', 1),
+  pair(Name, Col), % gets the column name
+  myMember(piece(Name-Row, Color, Piece), BoardStates), % checks if the current cell has a piece in it
+  drawSymbol(' ', 1), % draws a space in the cell 
   (
-    (Color == black, drawSymbol('*', 1));
-    (Color == white, drawSymbol(' ', 1))
+    (Color == black, drawSymbol('*', 1)); % draws a star if the piece is black
+    (Color == white, drawSymbol(' ', 1)) % draws a space is the piece is white 
   ),
-  pair(Piece, PieceAbbreviation),
-  drawSymbol(PieceAbbreviation, 1),
-  drawSymbol(' ', 1).
+  pair(Piece, PieceAbbreviation), % gets the abbreviation of the piece
+  drawSymbol(PieceAbbreviation, 1), % draws the abbreviation of the piece
+  drawSymbol(' ', 1). % draws a space after the piece abbreviation
 
 % deals with white space
 drawCell(BoardStates, Row, Col) :-
   pair(Name, Col),
   \+ (myMember(piece(Name-Row, Color, Piece), BoardStates)),
   drawSymbol(' ', 4).
-  
+
+% Draws the labels of the columns at the bottom of the board
 drawPair :-
   drawSymbol(' ', 4), drawSymbol('a', 1), drawSymbol(' ', 4), drawSymbol('b', 1),
   drawSymbol(' ', 4), drawSymbol('c', 1), drawSymbol(' ', 4), drawSymbol('d', 1),
   drawSymbol(' ', 4), drawSymbol('e', 1), drawSymbol(' ', 4), drawSymbol('f', 1),
   drawSymbol(' ', 4), drawSymbol('g', 1), drawSymbol(' ', 4), drawSymbol('h', 1).
 
+% Maps the names of the column numbers
 pair(a, 8).
 pair(b, 7).
 pair(c, 6).
@@ -475,6 +479,7 @@ pair(f, 3).
 pair(g, 2).
 pair(h, 1).
 
+% Maps piece types to their abbreviations
 pair(rook, r).
 pair(bishop, b).
 pair(king, k).
@@ -482,16 +487,18 @@ pair(pawn, p).
 pair(queen, q).
 pair(knight, n).
 
-drawBoard(BoardStates, 0, Col) :- drawSymbol(' ', 1), drawBorderLine(Col), drawPair.
+% Draws the entire board
+drawBoard(BoardStates, 0, Col) :- drawSymbol(' ', 1), drawBorderLine(Col), drawPair. % Draws a space, the border and the column labels
 drawBoard(BoardStates, Row, Col) :-
-  Row > 0,
-  drawSymbol(' ', 1),
-  drawBorderLine(Col),
-  drawSymbol(Row, 1),
-  drawContentCell(BoardStates, Row, Col),
-  NewRow is Row - 1,
-  drawBoard(BoardStates, NewRow, Col).
+  Row > 0, % This ensures there are rows left to draw
+  drawSymbol(' ', 1), % Draws a space
+  drawBorderLine(Col), % Draws the border of the current row
+  drawSymbol(Row, 1), % Draws the label of the current row or rank number
+  drawContentCell(BoardStates, Row, Col), % Draws the content of the current cell row
+  NewRow is Row - 1, % Decrement the row count
+  drawBoard(BoardStates, NewRow, Col). % Recursive call with decremented row count
 
+% Initiates the board drawing process
 print_board(Board) :-
     drawBoard(Board, 8, 8), nl.
 /* ----------------------------------------------------------------------- */
